@@ -13,7 +13,6 @@ def checkNext(return_json, lower_bound = 30):
     else:
         return False
 
-
 def crawl_comments(post_id):
     json_list = []
     comment_floor = 0
@@ -21,12 +20,11 @@ def crawl_comments(post_id):
     while True:
         query_url = basic_comment_url + str(post_id) + '/comments?after=' + str(comment_floor)
         return_json = requests.get(url=query_url).json()
-        
         json_list += [i for i in return_json]
-        comment_floor += 30
-
+        
         if checkNext(return_json): break
 
+        comment_floor += 30
         time.sleep(1)
 
     return json_list
@@ -35,21 +33,29 @@ def crawl(post_id):
     """
     Crawl post json first, then crawl comments.
     """
-
     post_id_str = str(post_id)
     print('Crawling Post : ' + post_id_str)
 
     query_post_url = basic_post_url + str(post_id)
-    post_json = requests.get(url=query_post_url).json()
 
     """ api query fail check """
+    try:
+        post_json = requests.get(url=query_post_url).json()
+    except:
+        print('\tWierd response : No json found!')
+        time.sleep(15)
+        return None
+
     if post_json.get("error"):
-        print('Error response : ' + post_json.get("message"))
+        print('\tError response : ' + post_json.get("message"))
         return None
 
     """ Save files """
-    if not os.path.isdir(folder_name + post_id_str):
+    if os.path.isdir(folder_name + post_id_str):
+        print('\tDuplicated File! ')
+    else:
         os.makedirs(folder_name + post_id_str)
+        time.sleep(3)
 
     with open(folder_name + post_id_str + '/post.json', 'w') as f:
         json.dump(post_json,f)
@@ -57,11 +63,13 @@ def crawl(post_id):
     with open(folder_name + post_id_str + '/comments.json', 'w') as f:
         json.dump(crawl_comments(post_id),f)
 
-if __name__ == '__main__':
-    folder_name = 'range_post/'
 
-    for post_id in range(226580000,226590000):
+
+if __name__ == '__main__':
+    folder_name = '/media/yenhao/green/Dcard/'
+
+    for post_id in reversed(range(226570095,226580000)):
         crawl(post_id)
-        time.sleep(5)
+        
 
 
