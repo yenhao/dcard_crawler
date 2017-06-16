@@ -12,7 +12,7 @@ def checkNext(return_json, lower_bound = 30):
     else:
         return False
 
-def crawl_comments(post_id):
+def crawl_comments(post_id, db):
     json_list = []
     comment_floor = 0
 
@@ -26,9 +26,10 @@ def crawl_comments(post_id):
         comment_floor += 30
         time.sleep(1)
 
-    return json_list
+    if len(json_list) >0:
+        db.comments.insert_many(json_list) # Insert to DB
 
-def crawl(db, post_id):
+def crawl(post_id, db):
     """
     Crawl post json first, then crawl comments.
     """
@@ -40,27 +41,20 @@ def crawl(db, post_id):
     """ api query fail check """
     try:
         post_json = requests.get(url=query_post_url).json()
+        if post_json.get("error") is not None:
+            print('\tError response : ' + post_json.get("message"))
+            return None
+        
+        db.posts.insert(post_json) # Insert to DB
     except:
-        print('\tWierd response : No json found!')
+        print('\tWierd response : No json found! Re-crawl in 15 second..')
         time.sleep(15)
+        crawl(post_id, db)
         return None
 
-    if post_json.get("error"):
-        print('\tError response : ' + post_json.get("message"))
-        return None
 
-    """ Save files """
-    if os.path.isdir(folder_name + post_id_str):
-        print('\tDuplicated File! ')
-    else:
-        os.makedirs(folder_name + post_id_str)
-        time.sleep(3)
 
-    with open(folder_name + post_id_str + '/post.json', 'w') as f:
-        json.dump(post_json,f)
-
-    with open(folder_name + post_id_str + '/comments.json', 'w') as f:
-        json.dump(crawl_comments(post_id),f)
+    crawl_comments(post_id, db)
 
 
 
@@ -68,8 +62,8 @@ if __name__ == '__main__':
     conn = MongoClient(host="127.0.0.1", port=27017)    #connect to mongodb
     db = conn.dcard
 
-    for post_id in reversed(range(220000000,226000000)):
-        crawl(db, post_id)
+    for post_id in range(224040289,226000000):
+        crawl(post_id, db)
         
 
 
